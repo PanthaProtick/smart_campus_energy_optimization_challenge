@@ -49,10 +49,9 @@ errors, HTTP 408/429, or 5xx responses. Authentication and other non-transient
 HTTP failures are not retried. Each call is limited to 8 seconds per attempt;
 the public interpreter enforces a 17-second total budget.
 
-Live latency has **not** been measured in this checkout: `GEMINI_API_KEY` is not
-configured and `app/contracts.py` has not yet been published. Do not report the
-offline fake-provider timings as model latency. After adding the shared
-contract and configuring the key, run:
+Live latency has **not** been measured in this checkout because `GEMINI_API_KEY`
+is not configured. Do not report offline fake-provider timings as model latency.
+After configuring the key, run:
 
 ```powershell
 uv run python scripts/measure_interpreter_latency.py --calls 20

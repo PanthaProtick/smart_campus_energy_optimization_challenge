@@ -62,7 +62,9 @@ Environment variables:
 | --- | --- | --- |
 | `PORT` | API local/container startup | `8000` |
 | `GRIDWISE_RUN_COMPONENT_INTEGRATION` | Opt-in real-component test run only | Leave unset for ordinary offline tests; set to `1` to enable integration tests |
-| LLM provider credentials/model | Person 2 interpreter | Names depend on the provider selected by Person 2 and must be added here when that component is integrated. Never commit secret values. |
+| `GEMINI_API_KEY` | Person 2 interpreter | Required for real requests. Set it in the process environment or ignored project-root `.env` file. |
+| `GRIDWISE_LLM_MODEL` | Person 2 interpreter | Optional Gemini model override; defaults to `gemini-3.5-flash`. |
+| `GRIDWISE_LLM_ENDPOINT` | Person 2 interpreter | Optional Gemini API endpoint override; defaults to `https://generativelanguage.googleapis.com/v1beta`. |
 
 ## Test scope and integration status
 
@@ -77,11 +79,11 @@ uv run pytest -q -m integration
 
 These tests compare the machine-checkable directive fields, independently replay the returned schedules, recalculate all reported metrics, and compare the cost to each public reference. They are opt-in because the normal test command must not make paid model calls.
 
-The API depends on the Person 2 interpreter (`app.services.interpreter.interpret_notes`) and Person 3 optimizer/replay modules (`app.services.optimizer.optimize_energy` and `app.services.plan_validator.validate_plan`). Their implementations must be present for `/optimize-energy` to produce a real plan. After they are integrated, run the same suite with the real components wired in and update the provider configuration below.
+The API calls the Person 2 interpreter (`app.services.interpreter.interpret_notes`) followed by the Person 3 optimizer and independent replay validator (`app.services.optimizer.optimize_energy` and `app.services.plan_validator.validate_plan`). A production optimization request therefore requires `GEMINI_API_KEY`; a missing or unavailable provider produces a safe `interpretation_failed` response instead of a partial plan.
 
 ### Model configuration
 
-Pending Person 2's provider/model selection. Add the exact environment-variable names and a safe example with placeholder values here when handed off. Never commit API keys or `.env` files.
+The interpreter uses Gemini's `generateContent` endpoint with constrained JSON output. Its default model is `gemini-3.5-flash`; override it with `GRIDWISE_LLM_MODEL` if the judging environment requires another available Gemini model. Calls use an 8-second attempt timeout, at most one retry for transient provider failures, and a 17-second overall interpreter budget inside the API's 30-second deadline. Never commit API keys or `.env` files.
 
 ## Known limits
 
