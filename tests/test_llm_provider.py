@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
+import app.services.llm_provider as llm_provider
 from app.services.llm_provider import (
     GeminiClient,
     ProviderConfig,
@@ -19,6 +20,9 @@ from app.services.llm_provider import (
 
 
 def test_missing_api_key_fails_with_safe_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    # This unit test verifies an absent process configuration.  A developer's
+    # ignored project .env is an integration concern and must not leak into it.
+    monkeypatch.setattr(llm_provider, "_load_project_dotenv", lambda: None)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     with pytest.raises(ProviderConfigurationError) as error:
         ProviderConfig.from_env()
