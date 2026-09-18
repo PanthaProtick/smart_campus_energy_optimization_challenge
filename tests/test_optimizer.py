@@ -1312,6 +1312,88 @@ def test_opt07_infeasible_reserve_exceeding_capacity_raises_error() -> None:
         optimize_energy(request=scenario, directives=directives)
 
 
+# ==============================================================================
+# OPT-08 Tests: Benchmarking, High-Magnitude Scaling, and State Isolation
+# ==============================================================================
+
+
+def test_opt08_high_magnitude_scenario_benchmark() -> None:
+    """Solve a high-magnitude industrial scenario (100,000 kWh) with numerical precision."""
+    import time
+
+    high_mag_scenario = {
+        "scenario_id": "HIGH-MAG-INDUSTRIAL",
+        "hours": [
+            {
+                "hour": h,
+                "demand_kwh": 100_000.0,
+                "solar_kwh": 60_000.0 if 8 <= h <= 16 else 0.0,
+                "tariff_bdt_per_kwh": 8.0 if h < 12 else 24.0,
+            }
+            for h in range(24)
+        ],
+        "battery": {
+            "capacity_kwh": 200_000.0,
+            "initial_energy_kwh": 50_000.0,
+            "minimum_energy_kwh": 20_000.0,
+            "max_charge_kwh_per_hour": 50_000.0,
+            "max_discharge_kwh_per_hour": 50_000.0,
+        },
+    }
+
+    t0 = time.perf_counter()
+    plan = optimize_energy(request=high_mag_scenario, directives=[])
+    duration = time.perf_counter() - t0
+
+    # Latency comfortably below 1 second
+    assert duration < 1.0, f"High magnitude solve took {duration:.4f}s"
+    assert len(plan) == 24
+    assert validate_plan(request=high_mag_scenario, directives=[], plan=plan) is True
+
+    metrics = compute_plan_metrics(plan, high_mag_scenario)
+    assert metrics.total_grid_kwh > 0.0
+    assert metrics.total_cost_bdt > 0.0
+
+
+def test_opt08_state_isolation_between_repeated_requests() -> None:
+    """Ensure solver does not retain mutable internal state between subsequent calls."""
+    scenario = _make_base_scenario()
+
+    # Run scenario 3 times back-to-back
+    plan1 = optimize_energy(request=scenario, directives=[])
+    plan2 = optimize_energy(request=scenario, directives=[])
+    plan3 = optimize_energy(request=scenario, directives=[])
+
+    assert plan1 == plan2 == plan3
+
+
+def test_opt08_public_cases_aggregate_latency() -> None:
+    """Verify all 10 public cases solve within tight aggregate latency bounds (< 0.5s total)."""
+    import time
+    assert FIXTURE_PATH.exists()
+    with open(FIXTURE_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+
+    times: list[float] = []
+    for case in data["cases"]:
+        req = case["input"]
+        directives = case["expected_output"]["directive_interpretation"]
+
+        t0 = time.perf_counter()
+        plan = optimize_energy(request=req, directives=directives)
+        dt = time.perf_counter() - t0
+        times.append(dt)
+
+        assert len(plan) == 24
+        assert dt < 0.2, f"Individual case solve took too long: {dt:.4f}s"
+
+    total_time = sum(times)
+    avg_time = total_time / len(times)
+    assert total_time < 0.5, f"Total 10 cases took {total_time:.4f}s (target < 0.5s)"
+    assert avg_time < 0.05, f"Average case solve took {avg_time:.4f}s (target < 0.05s)"
+
+
+
 
 
 
