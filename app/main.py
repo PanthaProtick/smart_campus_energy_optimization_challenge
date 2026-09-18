@@ -23,7 +23,7 @@ app = FastAPI(
     title="GridWise Energy Optimization API",
     version="1.0.0",
     description="LLM-assisted interpretation and 24-hour campus energy scheduling.",
-    docs_url=None,
+    docs_url="/docs",
     redoc_url=None,
 )
 
