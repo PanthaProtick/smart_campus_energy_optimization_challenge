@@ -1,0 +1,463 @@
+openapi: 3.1.1
+info:
+  title: GridWise Energy Optimization API
+  version: 1.0.0
+  summary: LLM-assisted interpretation and 24-hour campus energy scheduling
+  description: >-
+    Contract-first starter for the BUP CSE Fest 2026 GridWise preliminary.
+    This API accepts one synthetic 24-hour scenario, interprets each operator
+    note, applies validated directives, and returns a cost-minimizing schedule.
+servers:
+  - url: http://localhost:8000
+    description: Local development
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Readiness check
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+  /optimize-energy:
+    post:
+      operationId: optimizeEnergy
+      summary: Interpret directives and optimize the next 24 hours
+      description: >-
+        The LLM is required in the operator-note interpretation path. Its
+        structured output must be deterministically validated before the
+        directives are passed to the optimizer. The final schedule must be
+        replay-validated before returning a success response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptimizeEnergyRequest'
+            examples:
+              solarMaintenance:
+                summary: Solar cleaning from noon to 2 PM
+                value:
+                  scenario_id: GRID-101
+                  operator_notes:
+                    - Solar output will drop to about 20% from 1 PM to 3 PM.
+                  hours:
+                    - {hour: 0, demand_kwh: 180, solar_kwh: 0, tariff_bdt_per_kwh: 7}
+                    - {hour: 1, demand_kwh: 170, solar_kwh: 0, tariff_bdt_per_kwh: 6}
+                    - {hour: 2, demand_kwh: 165, solar_kwh: 0, tariff_bdt_per_kwh: 5}
+                    - {hour: 3, demand_kwh: 160, solar_kwh: 0, tariff_bdt_per_kwh: 5}
+                    - {hour: 4, demand_kwh: 165, solar_kwh: 0, tariff_bdt_per_kwh: 5}
+                    - {hour: 5, demand_kwh: 175, solar_kwh: 0, tariff_bdt_per_kwh: 6}
+                    - {hour: 6, demand_kwh: 190, solar_kwh: 5, tariff_bdt_per_kwh: 8}
+                    - {hour: 7, demand_kwh: 210, solar_kwh: 20, tariff_bdt_per_kwh: 10}
+                    - {hour: 8, demand_kwh: 230, solar_kwh: 50, tariff_bdt_per_kwh: 12}
+                    - {hour: 9, demand_kwh: 245, solar_kwh: 90, tariff_bdt_per_kwh: 14}
+                    - {hour: 10, demand_kwh: 255, solar_kwh: 130, tariff_bdt_per_kwh: 16}
+                    - {hour: 11, demand_kwh: 260, solar_kwh: 160, tariff_bdt_per_kwh: 16}
+                    - {hour: 12, demand_kwh: 265, solar_kwh: 180, tariff_bdt_per_kwh: 15}
+                    - {hour: 13, demand_kwh: 260, solar_kwh: 170, tariff_bdt_per_kwh: 14}
+                    - {hour: 14, demand_kwh: 250, solar_kwh: 140, tariff_bdt_per_kwh: 13}
+                    - {hour: 15, demand_kwh: 245, solar_kwh: 90, tariff_bdt_per_kwh: 14}
+                    - {hour: 16, demand_kwh: 250, solar_kwh: 45, tariff_bdt_per_kwh: 18}
+                    - {hour: 17, demand_kwh: 265, solar_kwh: 10, tariff_bdt_per_kwh: 22}
+                    - {hour: 18, demand_kwh: 285, solar_kwh: 0, tariff_bdt_per_kwh: 28}
+                    - {hour: 19, demand_kwh: 295, solar_kwh: 0, tariff_bdt_per_kwh: 30}
+                    - {hour: 20, demand_kwh: 285, solar_kwh: 0, tariff_bdt_per_kwh: 26}
+                    - {hour: 21, demand_kwh: 255, solar_kwh: 0, tariff_bdt_per_kwh: 18}
+                    - {hour: 22, demand_kwh: 215, solar_kwh: 0, tariff_bdt_per_kwh: 10}
+                    - {hour: 23, demand_kwh: 185, solar_kwh: 0, tariff_bdt_per_kwh: 7}
+                  battery:
+                    capacity_kwh: 500
+                    initial_energy_kwh: 200
+                    minimum_energy_kwh: 50
+                    max_charge_kwh_per_hour: 100
+                    max_discharge_kwh_per_hour: 100
+      responses:
+        '200':
+          description: Interpretation and valid optimized schedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptimizeEnergyResponse'
+        '400':
+          description: Malformed JSON request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: malformed_json
+                  message: Request body must be valid JSON.
+        '422':
+          description: Structurally or semantically invalid request, or infeasible scenario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: invalid_request
+                  message: hours must contain exactly one entry for each hour from 0 through 23.
+        '500':
+          description: Controlled internal, model, or optimizer failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: interpretation_failed
+                  message: The operator notes could not be interpreted safely.
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          const: ok
+    OptimizeEnergyRequest:
+      type: object
+      additionalProperties: false
+      required: [scenario_id, operator_notes, hours, battery]
+      properties:
+        scenario_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '\S'
+          description: Synthetic scenario identifier, echoed in the response.
+        operator_notes:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: string
+            minLength: 1
+            maxLength: 2000
+            pattern: '\S'
+        hours:
+          type: array
+          minItems: 24
+          maxItems: 24
+          description: >-
+            Must contain exactly one record per hour, ordered 0 through 23.
+            JSON Schema cannot express this cross-item sequence invariant;
+            enforce it in the request validator.
+          items:
+            $ref: '#/components/schemas/HourInput'
+        battery:
+          $ref: '#/components/schemas/BatteryInput'
+    HourInput:
+      type: object
+      additionalProperties: false
+      required: [hour, demand_kwh, solar_kwh, tariff_bdt_per_kwh]
+      properties:
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        demand_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        solar_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        tariff_bdt_per_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+    BatteryInput:
+      type: object
+      additionalProperties: false
+      required:
+        - capacity_kwh
+        - initial_energy_kwh
+        - minimum_energy_kwh
+        - max_charge_kwh_per_hour
+        - max_discharge_kwh_per_hour
+      properties:
+        capacity_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        initial_energy_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        minimum_energy_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        max_charge_kwh_per_hour:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        max_discharge_kwh_per_hour:
+          $ref: '#/components/schemas/NonNegativeNumber'
+      description: >-
+        Cross-field invariants: initial_energy_kwh and minimum_energy_kwh must
+        not exceed capacity_kwh, and initial_energy_kwh must be at least the
+        base minimum_energy_kwh.
+    NonNegativeNumber:
+      type: number
+      minimum: 0
+      description: Finite JSON number greater than or equal to zero.
+    HourList:
+      type: array
+      minItems: 1
+      maxItems: 24
+      uniqueItems: true
+      items:
+        type: integer
+        minimum: 0
+        maximum: 23
+      description: Enforce ascending order in application validation.
+    SolarReductionAdjustment:
+      type: object
+      additionalProperties: false
+      required: [hours, factor]
+      properties:
+        hours:
+          $ref: '#/components/schemas/HourList'
+        factor:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Usable solar fraction remaining after reduction.
+    ReserveAdjustment:
+      type: object
+      additionalProperties: false
+      required: [hours, minimum_energy_kwh]
+      properties:
+        hours:
+          $ref: '#/components/schemas/HourList'
+        minimum_energy_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+    WindowAdjustment:
+      type: object
+      additionalProperties: false
+      required: [hours]
+      properties:
+        hours:
+          $ref: '#/components/schemas/HourList'
+    GridCapAdjustment:
+      type: object
+      additionalProperties: false
+      required: [hours, max_grid_kwh]
+      properties:
+        hours:
+          $ref: '#/components/schemas/HourList'
+        max_grid_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+    DirectiveInterpretation:
+      oneOf:
+        - $ref: '#/components/schemas/SolarReductionInterpretation'
+        - $ref: '#/components/schemas/ReserveInterpretation'
+        - $ref: '#/components/schemas/NoChargeInterpretation'
+        - $ref: '#/components/schemas/NoDischargeInterpretation'
+        - $ref: '#/components/schemas/GridCapInterpretation'
+        - $ref: '#/components/schemas/NoOpInterpretation'
+      discriminator:
+        propertyName: directive_type
+        mapping:
+          solar_reduction: '#/components/schemas/SolarReductionInterpretation'
+          minimum_battery_reserve: '#/components/schemas/ReserveInterpretation'
+          no_charge_window: '#/components/schemas/NoChargeInterpretation'
+          no_discharge_window: '#/components/schemas/NoDischargeInterpretation'
+          max_grid_window: '#/components/schemas/GridCapInterpretation'
+          no_op: '#/components/schemas/NoOpInterpretation'
+    InterpretationBase:
+      type: object
+      required: [note_index, applies, directive_type, structured_adjustment, explanation]
+      properties:
+        note_index:
+          type: integer
+          minimum: 0
+          maximum: 2
+        applies:
+          type: boolean
+        directive_type:
+          type: string
+        structured_adjustment:
+          type: object
+        explanation:
+          type: string
+          minLength: 1
+          maxLength: 500
+      description: Closed by each concrete interpretation schema below.
+    SolarReductionInterpretation:
+      allOf:
+        - $ref: '#/components/schemas/InterpretationBase'
+        - type: object
+          properties:
+            applies: {const: true}
+            directive_type: {const: solar_reduction}
+            structured_adjustment:
+              $ref: '#/components/schemas/SolarReductionAdjustment'
+      unevaluatedProperties: false
+    ReserveInterpretation:
+      allOf:
+        - $ref: '#/components/schemas/InterpretationBase'
+        - type: object
+          properties:
+            applies: {const: true}
+            directive_type: {const: minimum_battery_reserve}
+            structured_adjustment:
+              $ref: '#/components/schemas/ReserveAdjustment'
+      unevaluatedProperties: false
+    NoChargeInterpretation:
+      allOf:
+        - $ref: '#/components/schemas/InterpretationBase'
+        - type: object
+          properties:
+            applies: {const: true}
+            directive_type: {const: no_charge_window}
+            structured_adjustment:
+              $ref: '#/components/schemas/WindowAdjustment'
+      unevaluatedProperties: false
+    NoDischargeInterpretation:
+      allOf:
+        - $ref: '#/components/schemas/InterpretationBase'
+        - type: object
+          properties:
+            applies: {const: true}
+            directive_type: {const: no_discharge_window}
+            structured_adjustment:
+              $ref: '#/components/schemas/WindowAdjustment'
+      unevaluatedProperties: false
+    GridCapInterpretation:
+      allOf:
+        - $ref: '#/components/schemas/InterpretationBase'
+        - type: object
+          properties:
+            applies: {const: true}
+            directive_type: {const: max_grid_window}
+            structured_adjustment:
+              $ref: '#/components/schemas/GridCapAdjustment'
+      unevaluatedProperties: false
+    NoOpInterpretation:
+      type: object
+      additionalProperties: false
+      required: [note_index, applies, directive_type, structured_adjustment, explanation]
+      properties:
+        note_index:
+          type: integer
+          minimum: 0
+          maximum: 2
+        applies:
+          const: false
+        directive_type:
+          const: no_op
+        structured_adjustment:
+          type: 'null'
+        explanation:
+          type: string
+          minLength: 1
+          maxLength: 500
+    HourlyPlanEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - hour
+        - grid_kwh
+        - solar_used_kwh
+        - battery_action
+        - battery_kwh
+        - battery_energy_after_kwh
+      properties:
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        grid_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        solar_used_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        battery_action:
+          type: string
+          enum: [charge, discharge, idle]
+        battery_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        battery_energy_after_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+      description: >-
+        Cross-field invariant: battery_kwh is the magnitude of the selected
+        action and must be zero when battery_action is idle.
+    OptimizeEnergyResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - scenario_id
+        - directive_interpretation
+        - hourly_plan
+        - total_grid_kwh
+        - total_cost_bdt
+        - peak_grid_kwh
+        - plan_summary
+      properties:
+        scenario_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        directive_interpretation:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/DirectiveInterpretation'
+          description: Must contain exactly one entry per request note in note_index order.
+        hourly_plan:
+          type: array
+          minItems: 24
+          maxItems: 24
+          items:
+            $ref: '#/components/schemas/HourlyPlanEntry'
+          description: Must contain hours 0 through 23 in order.
+        total_grid_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        total_cost_bdt:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        peak_grid_kwh:
+          $ref: '#/components/schemas/NonNegativeNumber'
+        plan_summary:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - malformed_json
+                - invalid_request
+                - interpretation_failed
+                - optimization_failed
+                - internal_error
+            message:
+              type: string
+              minLength: 1
+              maxLength: 500
+              description: Safe, user-facing message without secrets or stack traces.
+x-contract-invariants:
+  request:
+    - hours are ordered exactly 0 through 23 with no duplicate hour values
+    - battery.initial_energy_kwh <= battery.capacity_kwh
+    - battery.minimum_energy_kwh <= battery.initial_energy_kwh
+  response:
+    - scenario_id equals the request scenario_id
+    - directive_interpretation has one entry per note in note_index order
+    - hourly_plan is ordered exactly 0 through 23 with no duplicate hour values
+    - every numeric result is finite and non-negative
+    - grid_kwh + solar_used_kwh + battery_discharge_kwh = demand_kwh + battery_charge_kwh within 0.01 kWh
+    - battery state transitions, capacity, reserve, and hourly charge/discharge limits hold
+    - solar_used_kwh <= effective solar after applicable solar_reduction directives
+    - no_charge_window, no_discharge_window, minimum_battery_reserve, and max_grid_window hold
+    - final battery energy equals initial battery energy within 0.01 kWh
+    - total_grid_kwh, total_cost_bdt, and peak_grid_kwh are recalculated from hourly_plan
+  directive-composition:
+    - The challenge statement does not define composition for overlapping directives of the same type.
+    - Keep composition in a single deterministic function and document the chosen policy pending organizer clarification.
