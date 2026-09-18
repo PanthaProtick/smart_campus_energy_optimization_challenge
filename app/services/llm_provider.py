@@ -32,6 +32,22 @@ class ProviderTimeoutError(ProviderError):
     category = "timeout"
 
 
+class ProviderRateLimitError(ProviderError):
+    category = "rate_limited"
+
+
+class ProviderRejectedError(ProviderError):
+    """A permanent HTTP 4xx rejection, with the safe status code exposed."""
+
+    category = "request_rejected"
+
+    def __init__(self, status_code: int) -> None:
+        self.status_code = status_code
+        super().__init__(
+            f"Gemini rejected the request (HTTP {status_code}); check key access, model ID, and request format."
+        )
+
+
 class ProviderUnavailableError(ProviderError):
     category = "provider_unavailable"
 
@@ -111,18 +127,14 @@ class GeminiClient:
         self, *, prompt: str, response_schema: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Return decoded GenerateContent JSON; no SDK response types escape."""
-        generation_config: dict[str, Any] = {
-            "responseFormat": {
-                "text": {
-                    # responseFormat uses the v1beta enum spelling rather
-                    # than the HTTP content-type literal.
-                    "mimeType": "APPLICATION_JSON",
-                }
-            },
-            "temperature": 0,
-        }
+        generation_config: dict[str, Any] = {"temperature": 0}
         if response_schema is not None:
-            generation_config["responseFormat"]["text"]["schema"] = response_schema
+            generation_config["responseFormat"] = {
+                "text": {
+                    "mimeType": "application/json",
+                    "schema": response_schema,
+                }
+            }
         body = json.dumps(
             {
                 "contents": [{"role": "user", "parts": [{"text": prompt}]}],
@@ -152,10 +164,14 @@ class GeminiClient:
                     if attempt + 1 < self._config.max_attempts:
                         time.sleep(0.2)
                         continue
-                    raise ProviderUnavailableError(
-                        "Gemini is temporarily unavailable."
-                    ) from None
-                raise ProviderUnavailableError("Gemini rejected the request.") from None
+                    if exc.code == 429:
+                        raise ProviderRateLimitError(
+                            "Gemini rate limit or quota was reached."
+                        ) from None
+                    if exc.code == 408:
+                        raise ProviderTimeoutError("Gemini request timed out.") from None
+                    raise ProviderUnavailableError("Gemini service is temporarily unavailable.") from None
+                raise ProviderRejectedError(exc.code) from None
             except (TimeoutError, socket.timeout):
                 if attempt + 1 < self._config.max_attempts:
                     time.sleep(0.2)

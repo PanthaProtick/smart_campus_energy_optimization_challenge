@@ -12,6 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt
 import app.services.interpreter as interpreter
 from app.services.llm_provider import (
     ProviderResponseError,
+    ProviderRateLimitError,
+    ProviderRejectedError,
     ProviderTimeoutError,
     ProviderUnavailableError,
 )
@@ -90,6 +92,8 @@ def test_public_interpreter_returns_shared_model_after_validation(
     "provider_error,category",
     [
         (ProviderTimeoutError("do not expose secret-value"), "timeout"),
+        (ProviderRateLimitError("do not expose secret-value"), "rate_limited"),
+        (ProviderRejectedError(403), "provider_rejected"),
         (ProviderUnavailableError("do not expose secret-value"), "provider_unavailable"),
         (ProviderResponseError("do not expose secret-value"), "invalid_provider_response"),
     ],
