@@ -21,6 +21,8 @@ from app.services.llm_provider import (
     GeminiClient,
     ProviderConfigurationError,
     ProviderError,
+    ProviderRateLimitError,
+    ProviderRejectedError,
     ProviderResponseError,
     ProviderTimeoutError,
     ProviderUnavailableError,
@@ -113,6 +115,18 @@ async def interpret_notes(
         category = "timeout"
         _safe_log_failure(correlation_id, category)
         raise InterpreterFailure(category, "Interpreter provider request timed out.") from None
+    except ProviderRateLimitError:
+        category = "rate_limited"
+        _safe_log_failure(correlation_id, category)
+        raise InterpreterFailure(
+            category, "Gemini rate limit or quota was reached; retry later or check project quota."
+        ) from None
+    except ProviderRejectedError:
+        category = "provider_rejected"
+        _safe_log_failure(correlation_id, category)
+        raise InterpreterFailure(
+            category, "Gemini rejected the request; check key access, model ID, and request format."
+        ) from None
     except ProviderUnavailableError:
         category = "provider_unavailable"
         _safe_log_failure(correlation_id, category)

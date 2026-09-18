@@ -12,6 +12,8 @@ from app.services.llm_provider import (
     GeminiClient,
     ProviderConfig,
     ProviderConfigurationError,
+    ProviderRateLimitError,
+    ProviderRejectedError,
     ProviderResponseError,
     ProviderTimeoutError,
     ProviderUnavailableError,
@@ -86,7 +88,7 @@ def test_adapter_returns_plain_json_and_requests_json_output() -> None:
     assert request.full_url.endswith("/models/gemini-3.5-flash:generateContent")
     assert sent["generationConfig"]["responseFormat"] == {
         "text": {
-            "mimeType": "APPLICATION_JSON",
+            "mimeType": "application/json",
             "schema": {"type": "object"},
         }
     }
@@ -94,29 +96,39 @@ def test_adapter_returns_plain_json_and_requests_json_output() -> None:
 
 
 @pytest.mark.parametrize(
-    "failure,expected",
+    "failure,expected,attempt_count",
     [
-        (socket.timeout("secret"), ProviderTimeoutError),
-        (urllib.error.URLError("secret"), ProviderUnavailableError),
+        (socket.timeout("secret"), ProviderTimeoutError, 2),
+        (urllib.error.URLError("secret"), ProviderUnavailableError, 2),
         (
             urllib.error.HTTPError("https://provider.invalid", 429, "limited", {}, None),
-            ProviderUnavailableError,
+            ProviderRateLimitError,
+            2,
         ),
         (
             urllib.error.HTTPError("https://provider.invalid", 503, "offline", {}, None),
             ProviderUnavailableError,
+            2,
+        ),
+        (
+            urllib.error.HTTPError("https://provider.invalid", 403, "denied", {}, None),
+            ProviderRejectedError,
+            1,
         ),
     ],
 )
 def test_provider_timeout_rate_limit_and_outage_are_typed_without_leaking_details(
-    failure: Exception, expected: type[Exception]
+    failure: Exception, expected: type[Exception], attempt_count: int
 ) -> None:
     client = GeminiClient(ProviderConfig(api_key="secret-api-key"))
     with patch("urllib.request.urlopen", side_effect=failure) as open_url:
         with pytest.raises(expected) as error:
             client.generate_content(prompt="secret prompt")
-    assert open_url.call_count == 2
+    assert open_url.call_count == attempt_count
     assert "secret" not in str(error.value)
+    if isinstance(error.value, ProviderRejectedError):
+        assert error.value.status_code == 403
+        assert "denied" not in str(error.value)
 
 
 def test_malformed_provider_json_is_a_typed_response_failure() -> None:
