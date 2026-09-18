@@ -113,7 +113,30 @@ Complete these in order unless a dependency is explicitly marked as parallel.
 
 - Create `pyproject.toml` with FastAPI, Uvicorn, Pydantic v2, pytest, and an HTTP test client.
 - Add `.gitignore` entries for virtual environments, caches, `.env`, and generated artifacts.
-- Add the minimal package/test directories and a short local run command.
+- Create this shared layout; keep one owner per implementation file:
+
+  ```text
+  app/
+    __init__.py
+    contracts.py
+    main.py
+    orchestration.py
+    services/
+      __init__.py
+      interpreter.py
+      interpreter_validation.py
+      optimizer.py
+      plan_validator.py
+  tests/
+    test_api.py
+    test_interpreter.py
+    test_optimizer.py
+  ```
+
+- Person 1 owns `pyproject.toml`, `app/contracts.py`, `app/main.py`, `app/orchestration.py`, and `tests/test_api.py`.
+- Person 2 owns `app/services/interpreter.py`, `app/services/interpreter_validation.py`, and `tests/test_interpreter.py`.
+- Person 3 owns `app/services/optimizer.py`, `app/services/plan_validator.py`, and `tests/test_optimizer.py`.
+- Tell both teammates when the directories and `app/contracts.py` are ready. Do not wait for the LLM or optimizer implementation before starting API work.
 - **Depends on:** none.
 - **Done when:** a clean `uv sync` succeeds and `uv run pytest -q` runs successfully.
 

@@ -119,7 +119,7 @@ Run the optimizer and replay validator over all 10 public cases, including combi
 
 ## Small, assignable work items
 
-The math and test fixtures can be developed in parallel with the API and LLM work. Use a small local typed input stub only until Person 1 publishes `app/contracts.py`; replace it before integration.
+Start in parallel with Persons 1 and 2 after the short contract kickoff. The math and test fixtures can be developed while the API and LLM code are in progress. Use a small local typed input stub only until Person 1 publishes `app/contracts.py`; replace it before integration. Own only the Person 3 files listed in Person 1's task; do not create duplicate shared contracts or edit `pyproject.toml` without coordinating.
 
 ### OPT-01 - Normalize validated directives into hourly constraints
 

@@ -104,7 +104,7 @@ Run the interpreter against expected interpretations for all public cases and an
 
 ## Small, assignable work items
 
-The provider adapter and prompt can be developed while Person 1 builds the shared models. Integrate typed outputs once `app/contracts.py` is ready.
+Start in parallel with Person 1 after the short contract kickoff. The provider adapter and prompt can be developed while Person 1 builds the shared models. Integrate typed outputs once `app/contracts.py` is ready. Own only the Person 2 files listed in Person 1's task; do not create duplicate shared contracts or edit `pyproject.toml` without coordinating.
 
 ### LLM-01 - Define configuration and provider boundary
 
