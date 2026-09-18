@@ -19,3 +19,4 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = ["integration: requires the real LLM and optimizer components to be configured"]
