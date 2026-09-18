@@ -86,7 +86,7 @@ def test_adapter_returns_plain_json_and_requests_json_output() -> None:
     assert request.full_url.endswith("/models/gemini-3.5-flash:generateContent")
     assert sent["generationConfig"]["responseFormat"] == {
         "text": {
-            "mimeType": "application/json",
+            "mimeType": "APPLICATION_JSON",
             "schema": {"type": "object"},
         }
     }

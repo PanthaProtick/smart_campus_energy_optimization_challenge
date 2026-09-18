@@ -114,7 +114,9 @@ class GeminiClient:
         generation_config: dict[str, Any] = {
             "responseFormat": {
                 "text": {
-                    "mimeType": "application/json",
+                    # responseFormat uses the v1beta enum spelling rather
+                    # than the HTTP content-type literal.
+                    "mimeType": "APPLICATION_JSON",
                 }
             },
             "temperature": 0,
