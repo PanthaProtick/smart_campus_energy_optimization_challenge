@@ -2,13 +2,13 @@
 
 ## Provider configuration for Person 1
 
-The interpreter uses Google Gemini GenerateContent with model `gemini-3.5-flash`
+The interpreter uses Google Gemini GenerateContent with model `gemini-3.1-flash-lite`
 and the global endpoint `https://generativelanguage.googleapis.com/v1beta`.
 
 | Variable | Required | Default / purpose |
 | --- | --- | --- |
 | `GEMINI_API_KEY` | Yes | Gemini API credential, loaded from process environment or project `.env` |
-| `GRIDWISE_LLM_MODEL` | No | `gemini-3.5-flash` |
+| `GRIDWISE_LLM_MODEL` | No | `gemini-3.1-flash-lite` |
 | `GRIDWISE_LLM_ENDPOINT` | No | `https://generativelanguage.googleapis.com/v1beta` |
 
 Suggested README wording:
@@ -16,7 +16,7 @@ Suggested README wording:
 > Set `GEMINI_API_KEY` in the process environment or in the ignored project-root
 > `.env` file before starting the API. `GRIDWISE_LLM_MODEL` and
 > `GRIDWISE_LLM_ENDPOINT` are optional overrides. The interpreter uses
-> `gemini-3.5-flash`, an 8-second per-attempt provider timeout, at most two
+> `gemini-3.1-flash-lite`, an 8-second per-attempt provider timeout, at most two
 > attempts for transient provider failures, and a 17-second interpreter budget
 > within the API's 30-second request budget. Provider, timeout, malformed model
 > output, and deterministic validation failures raise `InterpreterFailure` with

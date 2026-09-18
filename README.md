@@ -63,7 +63,7 @@ Environment variables:
 | `PORT` | API local/container startup | `8000` |
 | `GRIDWISE_RUN_COMPONENT_INTEGRATION` | Opt-in real-component test run only | Leave unset for ordinary offline tests; set to `1` to enable integration tests |
 | `GEMINI_API_KEY` | Person 2 interpreter | Required for real requests. Set it in the process environment or ignored project-root `.env` file. |
-| `GRIDWISE_LLM_MODEL` | Person 2 interpreter | Optional Gemini model override; defaults to `gemini-3.5-flash`. |
+| `GRIDWISE_LLM_MODEL` | Person 2 interpreter | Optional Gemini model override; defaults to `gemini-3.1-flash-lite`. |
 | `GRIDWISE_LLM_ENDPOINT` | Person 2 interpreter | Optional Gemini API endpoint override; defaults to `https://generativelanguage.googleapis.com/v1beta`. |
 
 ## Test scope and integration status
@@ -83,7 +83,7 @@ The API calls the Person 2 interpreter (`app.services.interpreter.interpret_note
 
 ### Model configuration
 
-The interpreter uses Gemini's `generateContent` endpoint with constrained JSON output. Its default model is `gemini-3.5-flash`; override it with `GRIDWISE_LLM_MODEL` if the judging environment requires another available Gemini model. Calls use an 8-second attempt timeout, at most one retry for transient provider failures, and a 17-second overall interpreter budget inside the API's 30-second deadline. Never commit API keys or `.env` files.
+The interpreter uses Gemini's `generateContent` endpoint with constrained JSON output. Its default model is `gemini-3.1-flash-lite`; override it with `GRIDWISE_LLM_MODEL` if the judging environment requires another available Gemini model. Calls use an 8-second attempt timeout, at most one retry for transient provider failures, and a 17-second overall interpreter budget inside the API's 30-second deadline. Never commit API keys or `.env` files.
 
 ## Known limits
 
