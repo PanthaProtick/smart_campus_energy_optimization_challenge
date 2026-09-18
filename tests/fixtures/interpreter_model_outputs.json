@@ -1,0 +1,46 @@
+{
+  "examples": [
+    {
+      "note_index": 0,
+      "applies": true,
+      "directive_type": "solar_reduction",
+      "structured_adjustment": {"hours": [13, 14], "factor": 0.2},
+      "explanation": "Solar output is limited to 20% from 1 PM to 3 PM."
+    },
+    {
+      "note_index": 0,
+      "applies": true,
+      "directive_type": "minimum_battery_reserve",
+      "structured_adjustment": {"hours": [17, 18], "minimum_energy_kwh": 250.0},
+      "explanation": "Keep 50% of the 500 kWh battery capacity in reserve."
+    },
+    {
+      "note_index": 0,
+      "applies": true,
+      "directive_type": "no_charge_window",
+      "structured_adjustment": {"hours": [10, 11]},
+      "explanation": "Do not charge from 10 AM through noon."
+    },
+    {
+      "note_index": 0,
+      "applies": true,
+      "directive_type": "no_discharge_window",
+      "structured_adjustment": {"hours": [18, 19]},
+      "explanation": "Do not discharge from 6 PM through 8 PM."
+    },
+    {
+      "note_index": 0,
+      "applies": true,
+      "directive_type": "max_grid_window",
+      "structured_adjustment": {"hours": [19, 20], "max_grid_kwh": 300.0},
+      "explanation": "Limit grid import to 300 kWh from 7 PM through 9 PM."
+    },
+    {
+      "note_index": 0,
+      "applies": false,
+      "directive_type": "no_op",
+      "structured_adjustment": null,
+      "explanation": "The note is informational and contains no supported directive."
+    }
+  ]
+}
